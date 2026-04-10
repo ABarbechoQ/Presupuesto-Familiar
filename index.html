@@ -249,17 +249,13 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 
     <!-- HOY -->
     <div class="section" id="sec-hoy">
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button class="period-btn" id="p-dia" onclick="setPeriodo('dia')">Día</button>
-        <button class="period-btn" id="p-semana" onclick="setPeriodo('semana')">Semana</button>
-        <button class="period-btn active" id="p-mes" onclick="setPeriodo('mes')">Mes</button>
-      </div>
+
       <div class="metrics">
         <div class="metric"><div class="lbl">Gastos</div><div class="val" id="m-n">0</div></div>
         <div class="metric"><div class="lbl">Total</div><div class="val" id="m-t">$0</div></div>
         <div class="metric"><div class="lbl">Extras</div><div class="val danger" id="m-e">$0</div></div>
       </div>
-      <div class="sec-title" id="hoy-titulo">Este mes</div>
+      <div class="sec-title" id="hoy-titulo">Abril 2026</div>
       <div class="card" id="list-hoy"><div class="empty"><p>Sin gastos</p></div></div>
     </div>
 
@@ -300,7 +296,7 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
     </button>
     <button class="nav-btn" onclick="tab('hoy',this)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-      Hoy
+      <span id="nav-mes">Mes</span>
     </button>
     <button class="nav-btn" onclick="tab('res',this)">
       <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -341,7 +337,7 @@ const COLORES_CAT = {
 };
 
 let API_URL = '', USUARIO = '', DISPOSITIVO = '';
-let mesActual = '', mesesDisponibles = [], periodo = 'mes';
+let mesActual = '', mesesDisponibles = [];
 let gastos = [], extras = [], tipoGasto = 'presup';
 let chartRes = null, chartStats = null;
 let syncTimer = null;
@@ -561,10 +557,29 @@ function render(){
   renderExtras();
 }
 
+function parseFecha(fecha){
+  const f = String(fecha);
+  if(f.length >= 10 && f.substring(4,5)==='-') return f.substring(0,10);
+  if(f.length >= 10 && f.substring(2,3)==='/') return f.substring(6,10)+'-'+f.substring(3,5)+'-'+f.substring(0,2);
+  try{ const d=new Date(f); if(!isNaN(d)) return d.toISOString().substring(0,10); }catch(e){}
+  return f.substring(0,10);
+}
+
+function fechaEnPeriodo(fecha){
+  const f = parseFecha(fecha);
+  const d = today();
+  if(periodo==='dia') return f===d;
+  if(periodo==='semana'){
+    const hace7=new Date(); hace7.setDate(hace7.getDate()-6);
+    return new Date(f)>=hace7;
+  }
+  if(periodo==='mes') return f.substring(0,7)===mesActual;
+  return false;
+}
+
 function renderHoy(){
-  const d=today();
-  const gh=gastos.filter(g=>String(g.fecha).startsWith(d)||g.fecha===d);
-  const ge=extras.filter(g=>String(g.fecha).startsWith(d)||g.fecha===d);
+  const gh=gastos.filter(g=>parseFecha(g.fecha).substring(0,7)===mesActual);
+  const ge=extras.filter(g=>parseFecha(g.fecha).substring(0,7)===mesActual);
   const total=gh.reduce((s,g)=>s+parseFloat(g.monto||0),0);
   const etotal=ge.reduce((s,g)=>s+parseFloat(g.monto||0),0);
   document.getElementById('m-n').textContent=gh.length+ge.length;
@@ -575,7 +590,7 @@ function renderHoy(){
   if(!all.length){cont.innerHTML='<div class="empty"><p>Sin gastos hoy</p></div>';return;}
   cont.innerHTML=all.slice().reverse().map(g=>`
     <div class="gasto-item">
-      <div class="gasto-dot" style="background:${(COLORES_CAT[g.categoria]||'#ff5c5c')}22;color:${COLORES_CAT[g.categoria]||'#ff5c5c'};">
+      <div class="gasto-dot" style="background:${(COLORES[g.categoria]||'#ff5c5c')}22;color:${COLORES[g.categoria]||'#ff5c5c'};">
         ${(g.categoria||'E').charAt(0)}
       </div>
       <div class="gasto-info">
