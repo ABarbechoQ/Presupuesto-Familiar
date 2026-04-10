@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 22:10 -->
+<!-- MODIFICADO: 2026-04-10 22:36 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -44,7 +44,7 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 .sync-dot.syncing{background:var(--warn);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 
-#content{flex:1;overflow-y:auto;padding:16px 20px 100px;}
+#content{flex:1;overflow-y:auto;padding:16px 20px 160px;}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:8px 0 env(safe-area-inset-bottom,8px);z-index:100;}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;font-weight:500;transition:color .15s;}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;}
@@ -362,6 +362,12 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
           <div class="form-row">
             <div class="form-group"><label>Nombre</label><input type="text" id="nueva-cat-nombre" placeholder="Ej: Farmacia"></div>
             <div class="form-group"><label>Color</label><input type="color" id="nueva-cat-color" value="#3b9eff" style="height:44px;padding:4px;"></div>
+          </div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="nueva-cat-tipo">
+              <option value="presupuesto">En presupuesto mensual</option>
+              <option value="extra">Fuera del presupuesto (extras)</option>
+            </select>
           </div>
           <div class="form-group"><label>Presupuesto default ($)</label><input type="number" id="nueva-cat-pres" placeholder="0.00" step="0.01" min="0"></div>
           <div class="modal-actions">
@@ -973,27 +979,40 @@ function renderCategorias(){
     <div class="gasto-item">
       <div class="gasto-dot" style="background:${c.color}22;color:${c.color};">${c.nombre.charAt(0)}</div>
       <div class="gasto-info">
-        <div class="gasto-cat">${c.nombre} ${!c.activa?'<span class="badge badge-ext">inactiva</span>':''}</div>
+        <div class="gasto-cat">${c.nombre} 
+          ${!c.activa?'<span class="badge badge-ext">inactiva</span>':''}
+          <span class="badge ${c.tipo==='extra'?'badge-ext':'badge-yo'}">${c.tipo==='extra'?'extra':'presup.'}</span>
+        </div>
         <div class="gasto-nota">Presupuesto: $${parseFloat(c.presupuesto||0).toFixed(2)}</div>
       </div>
       <div class="gasto-actions">
-        <button class="btn-edit" onclick="editarCategoria('${c.nombre}','${c.color}',${c.presupuesto})">editar</button>
-        <button class="btn-edit" style="color:${c.activa?'var(--danger)':'var(--success)'};" onclick="toggleCat('${c.nombre}')">${c.activa?'desactivar':'activar'}</button>
+        <button class="btn-edit" onclick="editarCategoria('${c.nombre}','${c.color}',${c.presupuesto},'${c.tipo||'presupuesto'}')">editar</button>
+        <button class="btn-edit" style="color:${c.activa?'var(--danger)':'var(--success)'};" onclick="toggleCat('${c.nombre}')">${c.activa?'desact.':'activar'}</button>
       </div>
     </div>`).join('');
 }
 
 function mostrarFormNuevaCat(){
-  document.getElementById('form-nueva-cat').style.display='block';
+  editCatOriginal = '';
+  document.getElementById('nueva-cat-nombre').value='';
+  document.getElementById('nueva-cat-color').value='#3b9eff';
+  document.getElementById('nueva-cat-pres').value='';
+  document.getElementById('nueva-cat-tipo').value='presupuesto';
+  const btn = document.getElementById('btn-guardar-cat');
+  if(btn){ btn.textContent='Agregar'; btn.onclick=agregarCategoria; }
+  const form = document.getElementById('form-nueva-cat');
+  form.style.display='block';
+  setTimeout(()=>form.scrollIntoView({behavior:'smooth', block:'start'}), 100);
 }
 
 async function agregarCategoria(){
   const nombre = document.getElementById('nueva-cat-nombre').value.trim();
   const color = document.getElementById('nueva-cat-color').value;
   const pres = parseFloat(document.getElementById('nueva-cat-pres').value)||0;
+  const tipo = document.getElementById('nueva-cat-tipo').value;
   if(!nombre){ toast('Ingresa un nombre','warn'); return; }
   try{
-    const r = await api({action:'addCategoria', nombre, color, presupuesto:pres});
+    const r = await api({action:'addCategoria', nombre, color, presupuesto:pres, tipo});
     if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
@@ -1008,22 +1027,26 @@ async function toggleCat(nombre){
 }
 
 let editCatOriginal = '';
-function editarCategoria(nombre, color, pres){
+function editarCategoria(nombre, color, pres, tipo){
   editCatOriginal = nombre;
   document.getElementById('nueva-cat-nombre').value = nombre;
   document.getElementById('nueva-cat-color').value = color;
   document.getElementById('nueva-cat-pres').value = pres;
-  document.getElementById('form-nueva-cat').style.display='block';
-  document.querySelector('#form-nueva-cat .btn-confirm').textContent='Guardar cambios';
-  document.querySelector('#form-nueva-cat .btn-confirm').onclick = guardarEditCat;
+  document.getElementById('nueva-cat-tipo').value = tipo || 'presupuesto';
+  const btn = document.getElementById('btn-guardar-cat');
+  if(btn){ btn.textContent='Guardar cambios'; btn.onclick=guardarEditCat; }
+  const form = document.getElementById('form-nueva-cat');
+  form.style.display='block';
+  setTimeout(()=>form.scrollIntoView({behavior:'smooth', block:'start'}), 100);
 }
 
 async function guardarEditCat(){
   const nombre = document.getElementById('nueva-cat-nombre').value.trim();
   const color = document.getElementById('nueva-cat-color').value;
   const pres = parseFloat(document.getElementById('nueva-cat-pres').value)||0;
+  const tipo = document.getElementById('nueva-cat-tipo').value;
   try{
-    const r = await api({action:'editCategoria', nombreOriginal:editCatOriginal, nombre, color, presupuesto:pres});
+    const r = await api({action:'editCategoria', nombreOriginal:editCatOriginal, nombre, color, presupuesto:pres, tipo});
     if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
