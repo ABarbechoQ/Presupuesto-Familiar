@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- MODIFICADO: 2026-04-10 21:46 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -854,8 +855,10 @@ async function renderStats(){
 let presupuestoMes = {};
 
 async function initConfig(){
-  const m = new Date().toISOString().substring(0,7);
-  document.getElementById('cfg-mes').value = m;
+  const m = mesActual || new Date().toISOString().substring(0,7);
+  const cfgMes = document.getElementById('cfg-mes');
+  if(cfgMes) cfgMes.value = m;
+  renderCategorias();
   // Load last config as reference
   try{
     const r = await api({action:'getConfig', mes:m});
@@ -1025,9 +1028,10 @@ async function guardarEditCat(){
 
 // ── Borrados ─────────────────────────────────────────────
 async function renderBorrados(){
+  document.getElementById('list-borrados').innerHTML='<div class="empty"><p>Cargando...</p></div>';
   try{
     const r = await api({action:'getEliminados'});
-    if(!r.ok){ document.getElementById('list-borrados').innerHTML='<div class="empty"><p>Error al cargar</p></div>'; return; }
+    if(!r.ok){ document.getElementById('list-borrados').innerHTML='<div class="empty"><p>Error: '+r.error+'</p></div>'; return; }
     
     // Filter by current month
     const filtrados = r.data.filter(b=>{
