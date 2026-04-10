@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 22:53 -->
+<!-- MODIFICADO: 2026-04-10 23:05 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -669,8 +669,10 @@ function setTipo(tipo){
   tipoGasto=tipo;
   document.getElementById('btn-presup').className='toggle-btn'+(tipo==='presup'?' active':'');
   document.getElementById('btn-extra').className='toggle-btn'+(tipo==='extra'?' active-extra':'');
-  document.getElementById('campo-cat').style.display=tipo==='presup'?'block':'none';
-  document.getElementById('campo-cat-extra').style.display=tipo==='extra'?'block':'none';
+  const campoPresup = document.getElementById('campo-cat');
+  const campoExtra = document.getElementById('campo-cat-extra');
+  if(campoPresup) campoPresup.style.display=tipo==='presup'?'block':'none';
+  if(campoExtra) campoExtra.style.display=tipo==='extra'?'block':'none';
 }
 
 async function guardar(){
@@ -1047,7 +1049,7 @@ async function agregarCategoria(){
   if(!nombre){ toast('Ingresa un nombre','warn'); return; }
   try{
     const r = await api({action:'addCategoria', nombre, color, presupuesto:pres, tipo});
-    if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); await cargarPresupuestoMes(mesActual); renderCategorias(); renderResumen && renderResumen(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
@@ -1080,7 +1082,7 @@ async function guardarEditCat(){
   const tipo = document.getElementById('nueva-cat-tipo').value;
   try{
     const r = await api({action:'editCategoria', nombreOriginal:editCatOriginal, nombre, color, presupuesto:pres, tipo});
-    if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); await cargarPresupuestoMes(mesActual); renderCategorias(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
