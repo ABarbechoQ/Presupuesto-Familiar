@@ -608,7 +608,7 @@ function renderHoy(){
   if(!all.length){cont.innerHTML='<div class="empty"><p>Sin gastos hoy</p></div>';return;}
   cont.innerHTML=all.slice().reverse().map(g=>`
     <div class="gasto-item">
-      <div class="gasto-dot" style="background:${(COLORES[g.categoria]||'#ff5c5c')}22;color:${COLORES[g.categoria]||'#ff5c5c'};">
+      <div class="gasto-dot" style="background:${(COLORES_CAT[g.categoria]||'#ff5c5c')}22;color:${COLORES_CAT[g.categoria]||'#ff5c5c'};">
         ${(g.categoria||'E').charAt(0)}
       </div>
       <div class="gasto-info">
