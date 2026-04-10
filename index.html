@@ -592,15 +592,7 @@ function parseFecha(fecha){
 }
 
 function fechaEnPeriodo(fecha){
-  const f = parseFecha(fecha);
-  const d = today();
-  if(periodo==='dia') return f===d;
-  if(periodo==='semana'){
-    const hace7=new Date(); hace7.setDate(hace7.getDate()-6);
-    return new Date(f)>=hace7;
-  }
-  if(periodo==='mes') return f.substring(0,7)===mesActual;
-  return false;
+  return parseFecha(fecha).substring(0,7) === mesActual;
 }
 
 function renderHoy(){
