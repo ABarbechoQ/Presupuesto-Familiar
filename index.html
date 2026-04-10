@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 23:24 -->
+<!-- MODIFICADO: 2026-04-10 23:39 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -966,10 +966,16 @@ function calcularPresupuesto(){
     Huevos:    getVal('cfg-huevos',3.50) * getVal('cfg-veces-huevos',4),
   };
 
+  // Add dynamic categories from PRESUPUESTO not in fixed list
+  const fixedCats = ['Mercado','Pension','Pan','Leche','Agua','Luz','Internet','Gasolina','Tienda','Postres','Mateo','Samantha','Paz','Huevos'];
+  const dynamicCats = Object.keys(PRESUPUESTO).filter(k=>!fixedCats.includes(k));
+  dynamicCats.forEach(cat=>{ items[cat] = PRESUPUESTO[cat]||0; });
+  
   presupuestoMes = items;
   const total = Object.values(items).reduce((s,v)=>s+v,0);
   document.getElementById('cfg-total').textContent = '$'+total.toFixed(2);
   document.getElementById('cfg-preview').innerHTML = Object.entries(items)
+    .sort((a,b)=>b[1]-a[1])
     .map(([k,v])=>`<span style="display:inline-flex;justify-content:space-between;width:100%;"><span>${k}</span><span style="color:var(--text);font-weight:500;">$${v.toFixed(2)}</span></span>`)
     .join('');
 }
