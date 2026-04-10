@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 22:36 -->
+<!-- MODIFICADO: 2026-04-10 22:53 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -352,12 +352,16 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
         <button class="btn-save" onclick="guardarConfig()">Guardar presupuesto del mes</button>
       </div>
 
-      <div class="sec-title" style="margin-top:1.5rem;">Gestión de categorías</div>
-      <div class="card" id="lista-categorias">
-        <div class="empty"><p>Cargando categorías...</p></div>
+
+    </div>
+
+    <div class="section" id="sec-cats">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="sec-title" style="margin:0;">Categorías</div>
+        <button onclick="mostrarFormNuevaCat()" style="background:var(--success);border:none;border-radius:var(--r);padding:8px 14px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;">+ Nueva</button>
       </div>
-      <button class="btn-save" style="background:var(--success);margin-top:8px;" onclick="mostrarFormNuevaCat()">+ Nueva categoría</button>
-      <div id="form-nueva-cat" style="display:none;margin-top:12px;">
+
+      <div id="form-nueva-cat-top" style="display:none;margin-bottom:14px;">
         <div class="card">
           <div class="form-row">
             <div class="form-group"><label>Nombre</label><input type="text" id="nueva-cat-nombre" placeholder="Ej: Farmacia"></div>
@@ -371,10 +375,20 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
           </div>
           <div class="form-group"><label>Presupuesto default ($)</label><input type="number" id="nueva-cat-pres" placeholder="0.00" step="0.01" min="0"></div>
           <div class="modal-actions">
-            <button class="btn-cancel" onclick="document.getElementById('form-nueva-cat').style.display='none'">Cancelar</button>
+            <button class="btn-cancel" onclick="document.getElementById('form-nueva-cat-top').style.display='none'">Cancelar</button>
             <button class="btn-confirm" id="btn-guardar-cat" onclick="agregarCategoria()">Agregar</button>
           </div>
         </div>
+      </div>
+
+      <div class="sec-title">En presupuesto</div>
+      <div class="card" id="lista-cats-presup" style="margin-bottom:14px;">
+        <div class="empty"><p>Cargando...</p></div>
+      </div>
+
+      <div class="sec-title">Extras / Imprevistos</div>
+      <div class="card" id="lista-cats-extra">
+        <div class="empty"><p>Cargando...</p></div>
       </div>
     </div>
 
@@ -411,6 +425,10 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
     <button class="nav-btn" onclick="tab('config',this)">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Config
+    </button>
+    <button class="nav-btn" onclick="tab('cats',this)">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Cats
     </button>
     <button class="nav-btn" onclick="tab('borrados',this)">
       <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -533,12 +551,20 @@ async function cargarCategorias(){
       categorias = r.data;
       // Update categoria selects dynamically
       const activas = categorias.filter(c=>c.activa);
-      const opts = activas.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
-      const selects = ['f-cat','edit-cat'];
-      selects.forEach(id=>{
+      const presupCats = activas.filter(c=>c.tipo!=='extra');
+      const extraCats = activas.filter(c=>c.tipo==='extra');
+      
+      // Presupuesto categories
+      const optsPresup = presupCats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      ['f-cat','edit-cat'].forEach(id=>{
         const el = document.getElementById(id);
-        if(el) el.innerHTML = opts;
+        if(el) el.innerHTML = optsPresup;
       });
+      
+      // Extra categories - Varios first, then others
+      const optsExtra = extraCats.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      const elExtra = document.getElementById('f-cat-extra');
+      if(elExtra) elExtra.innerHTML = optsExtra || '<option value="Varios">Varios</option>';
       // Update COLORES_CAT dynamically
       categorias.forEach(c=>{ COLORES_CAT[c.nombre] = c.color; });
       // Update PRESUPUESTO with category defaults if no config
@@ -644,6 +670,7 @@ function setTipo(tipo){
   document.getElementById('btn-presup').className='toggle-btn'+(tipo==='presup'?' active':'');
   document.getElementById('btn-extra').className='toggle-btn'+(tipo==='extra'?' active-extra':'');
   document.getElementById('campo-cat').style.display=tipo==='presup'?'block':'none';
+  document.getElementById('campo-cat-extra').style.display=tipo==='extra'?'block':'none';
 }
 
 async function guardar(){
@@ -663,7 +690,8 @@ async function guardar(){
       const cat=document.getElementById('f-cat').value;
       r=await apiPost({action:'addGasto',fecha,quien,categoria:cat,monto,nota,enPresupuesto:'Sí'});
     } else {
-      r=await apiPost({action:'addExtra',fecha,quien,nota:nota||'Gasto extra',monto});
+      const catExtra = document.getElementById('f-cat-extra')?.value || 'Varios';
+      r=await apiPost({action:'addExtra',fecha,quien,nota:nota||'Gasto extra',monto,categoria:catExtra});
     }
     if(r.ok){
       document.getElementById('f-monto').value='';
@@ -973,23 +1001,30 @@ async function guardarConfig(){
 
 // ── Categorias ───────────────────────────────────────────
 function renderCategorias(){
-  const cont = document.getElementById('lista-categorias');
-  if(!categorias.length){ cont.innerHTML='<div class="empty"><p>Sin categorías</p></div>'; return; }
-  cont.innerHTML = categorias.map(c=>`
+  const presup = categorias.filter(c=>c.tipo!=='extra');
+  const extras = categorias.filter(c=>c.tipo==='extra');
+  
+  const renderList = (list) => list.length ? list.map(c=>`
     <div class="gasto-item">
       <div class="gasto-dot" style="background:${c.color}22;color:${c.color};">${c.nombre.charAt(0)}</div>
       <div class="gasto-info">
-        <div class="gasto-cat">${c.nombre} 
-          ${!c.activa?'<span class="badge badge-ext">inactiva</span>':''}
-          <span class="badge ${c.tipo==='extra'?'badge-ext':'badge-yo'}">${c.tipo==='extra'?'extra':'presup.'}</span>
-        </div>
+        <div class="gasto-cat">${c.nombre} ${!c.activa?'<span class="badge badge-ext">inactiva</span>':''}</div>
         <div class="gasto-nota">Presupuesto: $${parseFloat(c.presupuesto||0).toFixed(2)}</div>
       </div>
       <div class="gasto-actions">
         <button class="btn-edit" onclick="editarCategoria('${c.nombre}','${c.color}',${c.presupuesto},'${c.tipo||'presupuesto'}')">editar</button>
         <button class="btn-edit" style="color:${c.activa?'var(--danger)':'var(--success)'};" onclick="toggleCat('${c.nombre}')">${c.activa?'desact.':'activar'}</button>
       </div>
-    </div>`).join('');
+    </div>`).join('') : '<div class="empty"><p>Sin categorías</p></div>';
+
+  const cp = document.getElementById('lista-cats-presup');
+  const ce = document.getElementById('lista-cats-extra');
+  if(cp) cp.innerHTML = renderList(presup);
+  if(ce) ce.innerHTML = renderList(extras);
+  
+  // Also update old lista-categorias if exists
+  const cl = document.getElementById('lista-categorias');
+  if(cl) cl.innerHTML = renderList(categorias);
 }
 
 function mostrarFormNuevaCat(){
@@ -1000,9 +1035,8 @@ function mostrarFormNuevaCat(){
   document.getElementById('nueva-cat-tipo').value='presupuesto';
   const btn = document.getElementById('btn-guardar-cat');
   if(btn){ btn.textContent='Agregar'; btn.onclick=agregarCategoria; }
-  const form = document.getElementById('form-nueva-cat');
-  form.style.display='block';
-  setTimeout(()=>form.scrollIntoView({behavior:'smooth', block:'start'}), 100);
+  const form = document.getElementById('form-nueva-cat-top');
+  if(form){ form.style.display='block'; form.scrollIntoView({behavior:'smooth',block:'start'}); }
 }
 
 async function agregarCategoria(){
@@ -1013,7 +1047,7 @@ async function agregarCategoria(){
   if(!nombre){ toast('Ingresa un nombre','warn'); return; }
   try{
     const r = await api({action:'addCategoria', nombre, color, presupuesto:pres, tipo});
-    if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); renderCategorias(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
@@ -1035,9 +1069,8 @@ function editarCategoria(nombre, color, pres, tipo){
   document.getElementById('nueva-cat-tipo').value = tipo || 'presupuesto';
   const btn = document.getElementById('btn-guardar-cat');
   if(btn){ btn.textContent='Guardar cambios'; btn.onclick=guardarEditCat; }
-  const form = document.getElementById('form-nueva-cat');
-  form.style.display='block';
-  setTimeout(()=>form.scrollIntoView({behavior:'smooth', block:'start'}), 100);
+  const form = document.getElementById('form-nueva-cat-top');
+  if(form){ form.style.display='block'; form.scrollIntoView({behavior:'smooth',block:'start'}); }
 }
 
 async function guardarEditCat(){
@@ -1047,7 +1080,7 @@ async function guardarEditCat(){
   const tipo = document.getElementById('nueva-cat-tipo').value;
   try{
     const r = await api({action:'editCategoria', nombreOriginal:editCatOriginal, nombre, color, presupuesto:pres, tipo});
-    if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat-top').style.display='none'; await cargarCategorias(); renderCategorias(); }
     else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
@@ -1115,11 +1148,15 @@ function tab(name,btn){
   sec.classList.add('active');
   sec.style.display='block';
   btn.classList.add('active');
+  // Scroll to top of content
+  const ct = document.getElementById('content');
+  if(ct) ct.scrollTop = 0;
   markActive();
   if(name==='res') setTimeout(renderResumen,50);
   if(name==='stats') setTimeout(renderStats,50);
   if(name==='borrados') setTimeout(renderBorrados,50);
   if(name==='config') setTimeout(initConfig,50);
+  if(name==='cats') setTimeout(renderCategorias,50);
 }
 
 // ── Edicion ──────────────────────────────────────────────
