@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 23:10 -->
+<!-- MODIFICADO: 2026-04-10 23:24 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -573,10 +573,12 @@ async function cargarCategorias(){
       if(elExtra) elExtra.innerHTML = optsExtra || '<option value="Varios">Varios</option>';
       // Update COLORES_CAT dynamically
       categorias.forEach(c=>{ COLORES_CAT[c.nombre] = c.color; });
-      // Update PRESUPUESTO with category defaults if no config
-      if(!Object.keys(PRESUPUESTO).length){
-        categorias.forEach(c=>{ PRESUPUESTO[c.nombre] = c.presupuesto; });
-      }
+      // Sync PRESUPUESTO with all presupuesto-type categories
+      categorias.forEach(c=>{
+        if(c.tipo !== 'extra'){
+          if(!PRESUPUESTO[c.nombre]) PRESUPUESTO[c.nombre] = c.presupuesto;
+        }
+      });
     }
   }catch(e){}
 }
