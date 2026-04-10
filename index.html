@@ -361,7 +361,7 @@ const COLORES_CAT = {
 };
 
 let API_URL = '', USUARIO = '', DISPOSITIVO = '';
-let mesActual = '', mesesDisponibles = [];
+let mesActual = '', mesesDisponibles = [], categorias = [];
 let gastos = [], extras = [], tipoGasto = 'presup';
 let chartRes = null, chartStats = null;
 let syncTimer = null;
@@ -424,6 +424,29 @@ function startApp(){
   setInterval(checkSession, 15000);
 }
 
+async function cargarCategorias(){
+  try{
+    const r = await api({action:'getCategorias'});
+    if(r.ok && r.data){
+      categorias = r.data;
+      // Update categoria selects dynamically
+      const activas = categorias.filter(c=>c.activa);
+      const opts = activas.map(c=>`<option value="${c.nombre}">${c.nombre}</option>`).join('');
+      const selects = ['f-cat','edit-cat'];
+      selects.forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) el.innerHTML = opts;
+      });
+      // Update COLORES_CAT dynamically
+      categorias.forEach(c=>{ COLORES_CAT[c.nombre] = c.color; });
+      // Update PRESUPUESTO with category defaults if no config
+      if(!Object.keys(PRESUPUESTO).length){
+        categorias.forEach(c=>{ PRESUPUESTO[c.nombre] = c.presupuesto; });
+      }
+    }
+  }catch(e){}
+}
+
 async function cambiarMes(dir){
   const idx = mesesDisponibles.indexOf(mesActual);
   const nuevoIdx = idx + dir;
@@ -431,7 +454,9 @@ async function cambiarMes(dir){
     mesActual = mesesDisponibles[nuevoIdx];
     document.getElementById('header-sub').textContent = nombreMesJS(mesActual);
     await cargarPresupuestoMes(mesActual);
+    await cargarCategorias();
     await cargarPresupuestoMes(mesActual);
+    await cargarCategorias();
     loadAll();
   }
 }
@@ -485,7 +510,9 @@ async function loadAll(){
     }
     document.getElementById('header-sub').textContent = nombreMesJS(mesActual);
     await cargarPresupuestoMes(mesActual);
+    await cargarCategorias();
     await cargarPresupuestoMes(mesActual);
+    await cargarCategorias();
     setSyncState('on');
     render();
   }catch(e){
@@ -780,6 +807,7 @@ async function initConfig(){
     }
   }catch(e){}
   calcularPresupuesto();
+  renderCategorias();
   // Add listeners
   document.querySelectorAll('#sec-config input').forEach(el=>{
     el.addEventListener('input', calcularPresupuesto);
@@ -851,6 +879,70 @@ async function guardarConfig(){
     const r = await api({action:'saveConfig', ...data});
     if(r&&r.ok){ toast('Presupuesto guardado','ok'); }
     else{ toast('Error al guardar','warn'); }
+  }catch(e){ toast('Sin conexion','warn'); }
+}
+
+// ── Categorias ───────────────────────────────────────────
+function renderCategorias(){
+  const cont = document.getElementById('lista-categorias');
+  if(!categorias.length){ cont.innerHTML='<div class="empty"><p>Sin categorías</p></div>'; return; }
+  cont.innerHTML = categorias.map(c=>`
+    <div class="gasto-item">
+      <div class="gasto-dot" style="background:${c.color}22;color:${c.color};">${c.nombre.charAt(0)}</div>
+      <div class="gasto-info">
+        <div class="gasto-cat">${c.nombre} ${!c.activa?'<span class="badge badge-ext">inactiva</span>':''}</div>
+        <div class="gasto-nota">Presupuesto: $${parseFloat(c.presupuesto||0).toFixed(2)}</div>
+      </div>
+      <div class="gasto-actions">
+        <button class="btn-edit" onclick="editarCategoria('${c.nombre}','${c.color}',${c.presupuesto})">editar</button>
+        <button class="btn-edit" style="color:${c.activa?'var(--danger)':'var(--success)'};" onclick="toggleCat('${c.nombre}')">${c.activa?'desactivar':'activar'}</button>
+      </div>
+    </div>`).join('');
+}
+
+function mostrarFormNuevaCat(){
+  document.getElementById('form-nueva-cat').style.display='block';
+}
+
+async function agregarCategoria(){
+  const nombre = document.getElementById('nueva-cat-nombre').value.trim();
+  const color = document.getElementById('nueva-cat-color').value;
+  const pres = parseFloat(document.getElementById('nueva-cat-pres').value)||0;
+  if(!nombre){ toast('Ingresa un nombre','warn'); return; }
+  try{
+    const r = await api({action:'addCategoria', nombre, color, presupuesto:pres});
+    if(r.ok){ toast('Categoría agregada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    else{ toast('Error: '+r.error,'warn'); }
+  }catch(e){ toast('Sin conexion','warn'); }
+}
+
+async function toggleCat(nombre){
+  try{
+    const r = await api({action:'toggleCategoria', nombre});
+    if(r.ok){ toast(r.activa?'Categoría activada':'Categoría desactivada','ok'); await cargarCategorias(); renderCategorias(); }
+    else{ toast('Error: '+r.error,'warn'); }
+  }catch(e){ toast('Sin conexion','warn'); }
+}
+
+let editCatOriginal = '';
+function editarCategoria(nombre, color, pres){
+  editCatOriginal = nombre;
+  document.getElementById('nueva-cat-nombre').value = nombre;
+  document.getElementById('nueva-cat-color').value = color;
+  document.getElementById('nueva-cat-pres').value = pres;
+  document.getElementById('form-nueva-cat').style.display='block';
+  document.querySelector('#form-nueva-cat .btn-confirm').textContent='Guardar cambios';
+  document.querySelector('#form-nueva-cat .btn-confirm').onclick = guardarEditCat;
+}
+
+async function guardarEditCat(){
+  const nombre = document.getElementById('nueva-cat-nombre').value.trim();
+  const color = document.getElementById('nueva-cat-color').value;
+  const pres = parseFloat(document.getElementById('nueva-cat-pres').value)||0;
+  try{
+    const r = await api({action:'editCategoria', nombreOriginal:editCatOriginal, nombre, color, presupuesto:pres});
+    if(r.ok){ toast('Categoría actualizada','ok'); document.getElementById('form-nueva-cat').style.display='none'; await cargarCategorias(); renderCategorias(); }
+    else{ toast('Error: '+r.error,'warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
 
@@ -1012,84 +1104,6 @@ function toast(msg,type='ok'){
   setTimeout(()=>t.classList.remove('show'),2500);
 }
 </script>
-
-<div class="section" id="sec-config">
-  <div class="sec-title">Presupuesto del mes</div>
-  <div class="card" style="margin-bottom:14px;">
-    <div class="form-group">
-      <label>Mes a configurar</label>
-      <input type="month" id="cfg-mes">
-    </div>
-  </div>
-
-  <div class="card">
-    <p style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;">Ingresa los parámetros para calcular el presupuesto</p>
-
-    <div class="form-row">
-      <div class="form-group"><label>Domingos del mes</label><input type="number" id="cfg-domingos" placeholder="4" min="1" max="5"></div>
-      <div class="form-group"><label>Días del mes</label><input type="number" id="cfg-dias" placeholder="30" min="28" max="31"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Días de escuela</label><input type="number" id="cfg-escuela" placeholder="20" min="0" max="31"></div>
-      <div class="form-group"><label>Semanas del mes</label><input type="number" id="cfg-semanas" placeholder="4" min="1" max="5"></div>
-    </div>
-
-    <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;">
-      <p style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;">Valores unitarios</p>
-
-      <div class="form-row">
-        <div class="form-group"><label>Mercado (x domingo)</label><input type="number" id="cfg-mercado" placeholder="70" step="0.01"></div>
-        <div class="form-group"><label>Pensión (mes)</label><input type="number" id="cfg-pension" placeholder="255" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Pan (x día)</label><input type="number" id="cfg-pan" placeholder="3.50" step="0.01"></div>
-        <div class="form-group"><label>Leche (x día)</label><input type="number" id="cfg-leche" placeholder="1.10" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Agua (factura)</label><input type="number" id="cfg-agua" placeholder="30" step="0.01"></div>
-        <div class="form-group"><label>Luz (factura)</label><input type="number" id="cfg-luz" placeholder="40" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Internet (mes)</label><input type="number" id="cfg-internet" placeholder="30" step="0.01"></div>
-        <div class="form-group"><label>Gasolina (x vez)</label><input type="number" id="cfg-gasolina" placeholder="15" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Tienda (x semana)</label><input type="number" id="cfg-tienda" placeholder="25" step="0.01"></div>
-        <div class="form-group"><label>Postres (mes)</label><input type="number" id="cfg-postres" placeholder="20" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Mateo (x día escuela)</label><input type="number" id="cfg-mateo" placeholder="1.50" step="0.01"></div>
-        <div class="form-group"><label>Samantha (x día escuela)</label><input type="number" id="cfg-samantha" placeholder="2" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Paz (x día escuela)</label><input type="number" id="cfg-paz" placeholder="1" step="0.01"></div>
-        <div class="form-group"><label>Huevos (x compra)</label><input type="number" id="cfg-huevos" placeholder="3.50" step="0.01"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Veces gasolina/mes</label><input type="number" id="cfg-veces-gasolina" placeholder="4" min="1"></div>
-        <div class="form-group"><label>Veces huevos/mes</label><input type="number" id="cfg-veces-huevos" placeholder="4" min="1"></div>
-      </div>
-    </div>
-
-    <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px;">
-      <p style="font-size:12px;color:var(--text2);margin-bottom:8px;">Presupuesto calculado:</p>
-      <div id="cfg-preview" style="font-size:13px;color:var(--text2);line-height:2;"></div>
-      <div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--success);margin-top:8px;">Total: <span id="cfg-total">$0.00</span></div>
-    </div>
-
-    <button class="btn-save" onclick="guardarConfig()">Guardar presupuesto del mes</button>
-  </div>
-</div>
-
-<div class="section" id="sec-borrados">
-  <div class="metrics">
-    <div class="metric"><div class="lbl">Eliminados</div><div class="val" id="b-n">0</div></div>
-    <div class="metric"><div class="lbl">Monto</div><div class="val danger" id="b-t">$0</div></div>
-    <div class="metric"><div class="lbl">Por quien</div><div class="val" id="b-quien" style="font-size:13px;">—</div></div>
-  </div>
-  <div class="sec-title">Registros eliminados</div>
-  <div class="card" id="list-borrados"><div class="empty"><p>Sin registros eliminados</p></div></div>
-</div>
 
 <div id="modal-overlay">
   <div id="modal-box">
