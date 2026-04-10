@@ -325,12 +325,36 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-const PRESUPUESTO = {
-  Mercado:280,Pensión:255,Pan:105,Tienda:100,Leche:66,Gasolina:60,
+let PRESUPUESTO = {
+  Mercado:280,Pension:255,Pan:105,Tienda:100,Leche:66,Gasolina:60,
   Luz:40,Samantha:40,Internet:30,Agua:30,Mateo:30,Postres:20,Paz:20,Huevos:14
 };
+
+async function cargarPresupuestoMes(mes){
+  try{
+    const r = await api({action:'getConfig', mes:mes});
+    if(r.ok && r.data && r.data.total){
+      PRESUPUESTO = {
+        Mercado:   parseFloat(r.data.Mercado)||280,
+        Pension:   parseFloat(r.data.Pension)||255,
+        Pan:       parseFloat(r.data.Pan)||105,
+        Tienda:    parseFloat(r.data.Tienda)||100,
+        Leche:     parseFloat(r.data.Leche)||66,
+        Gasolina:  parseFloat(r.data.Gasolina)||60,
+        Luz:       parseFloat(r.data.Luz)||40,
+        Samantha:  parseFloat(r.data.Samantha)||40,
+        Internet:  parseFloat(r.data.Internet)||30,
+        Agua:      parseFloat(r.data.Agua)||30,
+        Mateo:     parseFloat(r.data.Mateo)||30,
+        Postres:   parseFloat(r.data.Postres)||20,
+        Paz:       parseFloat(r.data.Paz)||20,
+        Huevos:    parseFloat(r.data.Huevos)||14
+      };
+    }
+  }catch(e){}
+}
 const COLORES_CAT = {
-  Mercado:'#3b9eff',Pensión:'#2dd4a0',Pan:'#f5a623',Tienda:'#a78bfa',
+  Mercado:'#3b9eff',Pension:'#2dd4a0',Pan:'#f5a623',Tienda:'#a78bfa',
   Leche:'#f472b6',Gasolina:'#fb923c',Luz:'#facc15',Samantha:'#34d399',
   Internet:'#60a5fa',Agua:'#38bdf8',Mateo:'#c084fc',Postres:'#f87171',
   Paz:'#4ade80',Huevos:'#fbbf24'
@@ -407,6 +431,7 @@ async function cambiarMes(dir){
     mesActual = mesesDisponibles[nuevoIdx];
     document.getElementById('header-sub').textContent = nombreMesJS(mesActual);
     await cargarPresupuestoMes(mesActual);
+    await cargarPresupuestoMes(mesActual);
     loadAll();
   }
 }
@@ -459,6 +484,7 @@ async function loadAll(){
       mesesDisponibles.sort();
     }
     document.getElementById('header-sub').textContent = nombreMesJS(mesActual);
+    await cargarPresupuestoMes(mesActual);
     await cargarPresupuestoMes(mesActual);
     setSyncState('on');
     render();
