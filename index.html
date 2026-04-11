@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-11 04:12 -->
+<!-- MODIFICADO: 2026-04-11 04:28 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -44,14 +44,14 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 .sync-dot.syncing{background:var(--warn);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 
-#content{flex:1;overflow-y:auto;padding:16px 20px 160px;}
+#content{flex:1;overflow-y:auto;padding:8px 16px 200px;}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:8px 0 env(safe-area-inset-bottom,8px);z-index:100;}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;background:none;border:none;color:var(--text2);cursor:pointer;font-size:10px;font-weight:500;transition:color .15s;}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;}
 .nav-btn.active{color:var(--accent);}
 
 /* Sections */
-.section{display:none;}
+.section{display:none;padding-top:0;}
 .section.active{display:block;}
 
 /* Cards */
@@ -136,6 +136,8 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 
 /* Section title */
 .sec-title{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:12px;font-weight:600;}
+#sec-config,#sec-cats{padding-top:0;}
+#sec-config>.sec-title:first-child,#sec-cats>div:first-child{margin-top:0;}
 
 /* Setup screen */
 #setup{position:fixed;inset:0;background:var(--bg);z-index:300;display:flex;flex-direction:column;justify-content:center;padding:32px 28px;max-width:480px;margin:0 auto;}
@@ -193,10 +195,9 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
       <div class="sync-dot" id="sync-dot" title="Estado de sincronización"></div>
     </div>
   </div>
+  <div id="session-alert" style="margin:0;border-radius:0;border-left:none;border-right:none;"></div>
 
   <div id="content">
-    <div id="session-alert" id="session-alert"></div>
-
     <!-- REGISTRAR -->
     <div class="section active" id="sec-form">
       <div class="card">
@@ -288,7 +289,6 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
       <div class="sec-title">Gastos fuera de presupuesto</div>
       <div class="card" id="list-ext"><div class="empty"><p>Sin gastos extras</p></div></div>
     </div>
-  </div>
 
     <div class="section" id="sec-stats">
       <div class="sec-title">Estadisticas mensuales</div>
@@ -297,7 +297,7 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
     </div>
 
 
-<div class="section" id="sec-config">
+    <div class="section" id="sec-config">
       <div class="sec-title">Presupuesto del mes</div>
       <div class="card" style="margin-bottom:14px;">
         <div class="form-group">
