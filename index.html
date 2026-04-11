@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-11 01:58 -->
+<!-- MODIFICADO: 2026-04-11 02:46 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -455,30 +455,31 @@ let PRESUPUESTO = {};  // Se carga desde el Sheet - no hay valores por defecto
 
 async function cargarPresupuestoMes(mes){
   const nombreMes = nombreMesJS(mes);
+  // Get category names from categorias array (only presupuesto type)
+  const catNames = categorias.filter(c=>c.tipo!=='extra').map(c=>c.nombre);
   try{
     const r = await api({action:'getConfig', mes:mes});
     if(r.ok && r.data && r.data.total){
-      // Found config - use it
+      // Found config - only use keys that match category names
       const nuevoPres = {};
-      Object.keys(r.data).forEach(k=>{
-        const v = parseFloat(r.data[k]);
-        if(!isNaN(v) && v > 0 && k !== 'total') nuevoPres[k] = v;
+      catNames.forEach(nombre=>{
+        const v = parseFloat(r.data[nombre]);
+        if(!isNaN(v) && v >= 0) nuevoPres[nombre] = v;
       });
+      // Add any category not in config using its default
       categorias.forEach(c=>{
-        if(c.tipo !== 'extra' && !nuevoPres[c.nombre]) nuevoPres[c.nombre] = c.presupuesto||0;
+        if(c.tipo!=='extra' && !nuevoPres[c.nombre]) nuevoPres[c.nombre] = c.presupuesto||0;
       });
       if(Object.keys(nuevoPres).length > 0) PRESUPUESTO = nuevoPres;
-      // Clear warning and unblock app
       desbloquearApp();
     } else {
-      // No config found - show warning but continue
-      mostrarAlerta(`⚠ No se encontró presupuesto para ${nombreMes}. Ve a Config para configurarlo.`, 'presupuesto', true);
-      // Use categories defaults
+      // No config - use category defaults and warn
       const nuevoPres = {};
       categorias.forEach(c=>{
-        if(c.tipo !== 'extra') nuevoPres[c.nombre] = c.presupuesto||0;
+        if(c.tipo!=='extra') nuevoPres[c.nombre] = c.presupuesto||0;
       });
       if(Object.keys(nuevoPres).length > 0) PRESUPUESTO = nuevoPres;
+      mostrarAlerta(`⚠ No se encontró presupuesto para ${nombreMes}. Ve a Config para configurarlo.`, 'presupuesto', true);
     }
   }catch(e){
     mostrarAlerta(`⚠ Sin conexión al Sheet para ${nombreMes}. Verifica la URL del Script.`, 'conexion', true);
