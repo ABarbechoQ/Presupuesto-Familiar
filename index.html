@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MODIFICADO: 2026-04-10 23:39 -->
+<!-- MODIFICADO: 2026-04-11 01:58 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -451,33 +451,61 @@ input,select,textarea,button{font-family:var(--font);font-size:15px;}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-let PRESUPUESTO = {
-  Mercado:280,Pension:255,Pan:105,Tienda:100,Leche:66,Gasolina:60,
-  Luz:40,Samantha:40,Internet:30,Agua:30,Mateo:30,Postres:20,Paz:20,Huevos:14
-};
+let PRESUPUESTO = {};  // Se carga desde el Sheet - no hay valores por defecto
 
 async function cargarPresupuestoMes(mes){
+  const nombreMes = nombreMesJS(mes);
   try{
     const r = await api({action:'getConfig', mes:mes});
     if(r.ok && r.data && r.data.total){
-      PRESUPUESTO = {
-        Mercado:   parseFloat(r.data.Mercado)||280,
-        Pension:   parseFloat(r.data.Pension)||255,
-        Pan:       parseFloat(r.data.Pan)||105,
-        Tienda:    parseFloat(r.data.Tienda)||100,
-        Leche:     parseFloat(r.data.Leche)||66,
-        Gasolina:  parseFloat(r.data.Gasolina)||60,
-        Luz:       parseFloat(r.data.Luz)||40,
-        Samantha:  parseFloat(r.data.Samantha)||40,
-        Internet:  parseFloat(r.data.Internet)||30,
-        Agua:      parseFloat(r.data.Agua)||30,
-        Mateo:     parseFloat(r.data.Mateo)||30,
-        Postres:   parseFloat(r.data.Postres)||20,
-        Paz:       parseFloat(r.data.Paz)||20,
-        Huevos:    parseFloat(r.data.Huevos)||14
-      };
+      // Found config - use it
+      const nuevoPres = {};
+      Object.keys(r.data).forEach(k=>{
+        const v = parseFloat(r.data[k]);
+        if(!isNaN(v) && v > 0 && k !== 'total') nuevoPres[k] = v;
+      });
+      categorias.forEach(c=>{
+        if(c.tipo !== 'extra' && !nuevoPres[c.nombre]) nuevoPres[c.nombre] = c.presupuesto||0;
+      });
+      if(Object.keys(nuevoPres).length > 0) PRESUPUESTO = nuevoPres;
+      // Clear warning and unblock app
+      desbloquearApp();
+    } else {
+      // No config found - show warning but continue
+      mostrarAlerta(`⚠ No se encontró presupuesto para ${nombreMes}. Ve a Config para configurarlo.`, 'presupuesto', true);
+      // Use categories defaults
+      const nuevoPres = {};
+      categorias.forEach(c=>{
+        if(c.tipo !== 'extra') nuevoPres[c.nombre] = c.presupuesto||0;
+      });
+      if(Object.keys(nuevoPres).length > 0) PRESUPUESTO = nuevoPres;
     }
-  }catch(e){}
+  }catch(e){
+    mostrarAlerta(`⚠ Sin conexión al Sheet para ${nombreMes}. Verifica la URL del Script.`, 'conexion', true);
+  }
+}
+
+function mostrarAlerta(msg, tipo, bloquear=false){
+  const alerta = document.getElementById('session-alert');
+  if(!alerta) return;
+  alerta.style.display='block';
+  alerta.innerHTML = msg + (bloquear ? ' <strong>La app está bloqueada hasta resolver esto.</strong>' : '');
+  alerta.dataset.tipo = tipo;
+  if(bloquear) bloquearApp();
+}
+
+function bloquearApp(){
+  appBloqueada = true;
+  const btnSave = document.getElementById('btn-save');
+  if(btnSave){ btnSave.disabled=true; btnSave.textContent='App bloqueada — configura el presupuesto'; }
+}
+
+function desbloquearApp(){
+  appBloqueada = false;
+  const btnSave = document.getElementById('btn-save');
+  if(btnSave){ btnSave.disabled=false; btnSave.textContent='Guardar gasto'; }
+  const alerta = document.getElementById('session-alert');
+  if(alerta && (alerta.dataset.tipo==='presupuesto'||alerta.dataset.tipo==='conexion')) alerta.style.display='none';
 }
 const COLORES_CAT = {
   Mercado:'#3b9eff',Pension:'#2dd4a0',Pan:'#f5a623',Tienda:'#a78bfa',
@@ -487,7 +515,7 @@ const COLORES_CAT = {
 };
 
 let API_URL = '', USUARIO = '', DISPOSITIVO = '';
-let mesActual = '', mesesDisponibles = [], categorias = [];
+let mesActual = '', mesesDisponibles = [], categorias = [], appBloqueada = false;
 let gastos = [], extras = [], tipoGasto = 'presup';
 let chartRes = null, chartStats = null;
 let syncTimer = null;
@@ -630,14 +658,21 @@ async function loadAll(){
       mesesDisponibles.sort();
     }
     document.getElementById('header-sub').textContent = nombreMesJS(mesActual);
-    await cargarPresupuestoMes(mesActual);
+    // Update nav month name
+    const navMes = document.getElementById('nav-mes');
+    if(navMes) navMes.textContent = nombreMesJS(mesActual).substring(0,3);
+    const titulo = document.getElementById('hoy-titulo');
+    if(titulo) titulo.textContent = nombreMesJS(mesActual);
     await cargarCategorias();
     await cargarPresupuestoMes(mesActual);
-    await cargarCategorias();
     setSyncState('on');
+    // Clear connection error if was blocked
+    const alerta = document.getElementById('session-alert');
+    if(alerta && alerta.dataset.tipo === 'conexion') desbloquearApp();
     render();
   }catch(e){
     setSyncState('off');
+    mostrarAlerta('⚠ Sin conexión al Sheet. Verifica la URL del Script.', 'conexion', true);
   }
 }
 
@@ -777,6 +812,12 @@ function renderHoy(){
 
 function renderResumen(){
   const cats=Object.keys(PRESUPUESTO);
+  if(!cats.length){
+    document.getElementById('list-res').innerHTML='<div class="empty"><p>Sin presupuesto configurado para este mes</p></div>';
+    document.getElementById('r-gastado').textContent='$0';
+    document.getElementById('r-rest').textContent='$0';
+    return;
+  }
   let totalReal=0;
   const rows=cats.map(cat=>{
     const pres=PRESUPUESTO[cat];
@@ -1010,7 +1051,7 @@ async function guardarConfig(){
   };
   try{
     const r = await api({action:'saveConfig', ...data});
-    if(r&&r.ok){ toast('Presupuesto guardado','ok'); }
+    if(r&&r.ok){ toast('Presupuesto guardado','ok'); await cargarPresupuestoMes(mes); }
     else{ toast('Error al guardar','warn'); }
   }catch(e){ toast('Sin conexion','warn'); }
 }
